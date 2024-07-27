@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Code Executor</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/lint/lint.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/lint/lint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/lint/python-lint.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="snippets">
+            <h2>Snippets</h2>
+            <button onclick="insertSnippet('oop')">OOP Example</button>
+            <button onclick="insertSnippet('numpy')">NumPy Example</button>
+            <button onclick="insertSnippet('pandas')">Pandas Example</button>
+        </div>
+        <div class="editor-container">
+            <h1>Code Executor</h1>
+            <div id="mode-selector">
+                <button onclick="setMode('individual')">Individual Mode</button>
+                <button onclick="setMode('collaborative')">Collaborative Mode</button>
+            </div>
+            <div id="collaboration-info" style="display: none;">
+                <input type="text" id="room-id" placeholder="Enter room ID">
+                <button onclick="joinRoom()">Join Room</button>
+                <button onclick="createRoom()">Create New Room</button>
+                <p id="room-link" style="display: none;"></p>
+            </div>
+            <div id="github-loader">
+                <input type="text" id="github-url" placeholder="Enter GitHub file URL">
+                <button onclick="loadGitHubFile()">Load from GitHub</button>
+            </div>
+            <div id="editor-container">
+                <textarea id="code-editor"></textarea>
+            </div>
+            <select id="language-select">
+                <option value="python">Python</option>
+                <option value="javascript">JavaScript</option>
+            </select>
+            <button id="execute-btn">Execute Code</button>
+            <div id="output-container">
+                <h2>Output:</h2>
+                <pre id="output"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var editor;
+        var ws;
+        var roomId;
+        var currentMode = 'individual';
+
+        function initializeEditor() {
+            editor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
+                lineNumbers: true,
+                mode: "python",
+                theme: "dracula",
+                autoCloseBrackets: true,
+                matchBrackets: true,
+                indentUnit: 4,
+                tabSize: 4,
+                indentWithTabs: true,
+                extraKeys: {"Tab": "indentMore", "Shift-Tab": "indentLess"},
+                gutters: ["CodeMirror-lint-markers"],
+                lint: true
+            });
+
+            editor.setSize("100%", "400px");
+
+            editor.on("change", function(cm, change) {
+                if (currentMode === 'collaborative' && change.origin !== "setValue" && ws && ws.readyState === WebSocket.OPEN) {
+                    const cursor = editor.getCursor();
+                    ws.send(JSON.stringify({
+                        type: "code_change",
+                        content: cm.getValue(),
+                        cursor: {line: cursor.line, ch: cursor.ch}
+                    }));
+                }
+            });
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            if (mode === 'individual') {
+                document.getElementById('collaboration-info').style.display = 'none';
+                if (ws) {
+                    ws.close();
+                }
+            } else {
+                document.getElementById('collaboration-info').style.display = 'block';
+            }
+        }
+
+        function createRoom() {
+            roomId = Math.random().toString(36).substring(7);
+            document.getElementById('room-id').value = roomId;
+            document.getElementById('room-link').innerText = `Room Link: ${window.location.origin}?room=${roomId}`;
+            document.getElementById('room-link').style.display = 'block';
+            joinRoom();
+        }
+
+        function joinRoom() {
+            roomId = document.getElementById('room-id').value;
+            if (!roomId) {
+                alert("Please enter a room ID");
+                return;
+            }
+
+            ws = new WebSocket(`ws://localhost:8000/ws/${roomId}`);
+
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.type === "code_change") {
+                    const cursor = editor.getCursor();
+                    editor.setValue(data.content);
+                    if (data.cursor) {
+                        editor.setCursor(data.cursor);
+                    } else {
+                        editor.setCursor(cursor);
+                    }
+                }
+            };
+
+            ws.onclose = function(event) {
+                alert("Connection closed. Please refresh the page to reconnect.");
+            };
+        }
+
+        function insertSnippet(type) {
+            var snippet = "";
+            switch(type) {
+                case 'oop':
+                    snippet = `class Animal:
+def __init__(self, name):
+    self.name = name
+
+def speak(self):
+    pass
+
+class Dog(Animal):
+def speak(self):
+    return f"{self.name} says Woof!"
+
+dog = Dog("Buddy")
+print(dog.speak())`;
+                    break;
+                case 'numpy':
+                    snippet = `import numpy as np
+
+# Create an array
+arr = np.array([1, 2, 3, 4, 5])
+
+# Perform operations
+print(arr * 2)
+print(np.mean(arr))`;
+                    break;
+                case 'pandas':
+                    snippet = `import pandas as pd
+
+# Create a DataFrame
+df = pd.DataFrame({
+'Name': ['John', 'Anna', 'Peter', 'Linda'],
+'Age': [28, 34, 29, 32],
+'City': ['New York', 'Paris', 'Berlin', 'London']
+})
+
+# Display the DataFrame
+print(df)
+
+# Basic statistics
+print(df.describe())`;
+                    break;
+            }
+            editor.setValue(snippet);
+        }
+
+        function loadGitHubFile() {
+            var url = document.getElementById("github-url").value;
+            if (!url) {
+                alert("Please enter a GitHub file URL");
+                return;
+            }
+
+            fetch("/load-github-file", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({url: url}),
+            })
+            .then(response => response.json())
+            .then(data => {
+                editor.setValue(data.content);
+                if (currentMode === 'collaborative' && ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: "code_change",
+                        content: data.content,
+                        cursor: {line: 0, ch: 0}
+                    }));
+                }
+            })
+            .catch((error) => {
+                console.error("Error:", error);
+                alert("Failed to load file from GitHub. Please check the URL and try again.");
+            });
+        }
+
+        document.getElementById("language-select").addEventListener("change", function() {
+            var language = this.value;
+            editor.setOption("mode", language);
+            editor.setOption("lint", language === "javascript" ? { esversion: 6 } : true);
+        });
+
+        document.getElementById("execute-btn").addEventListener("click", function() {
+            var code = editor.getValue();
+            var language = document.getElementById("language-select").value;
+            
+            fetch("/execute", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({code: code, language: language}),
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("output").textContent = data.output;
+            })
+            .catch((error) => {
+                console.error("Error:", error);
+            });
+        });
+
+        window.onload = function() {
+            initializeEditor();
+            const urlParams = new URLSearchParams(window.location.search);
+            const room = urlParams.get('room');
+            if (room) {
+                setMode('collaborative');
+                document.getElementById('room-id').value = room;
+                joinRoom();
+            }
+        }
+    </script>
+</body>
+</html>

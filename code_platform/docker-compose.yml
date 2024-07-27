@@ -1,0 +1,14 @@
+version: "3.7"
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/app
+
+  sandbox:
+    build:
+      context: app/sandbox
+    image: code_platform_sandbox

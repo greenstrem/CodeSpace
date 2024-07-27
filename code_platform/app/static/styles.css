@@ -1,0 +1,72 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+#room-info {
+    margin-bottom: 20px;
+}
+
+#room-id {
+    padding: 5px;
+    font-size: 16px;
+}
+
+button {
+    padding: 5px 10px;
+    font-size: 16px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+#editor-container {
+    border: 1px solid #ccc;
+}
+
+.container {
+    display: flex;
+    max-width: 1200px;
+}
+
+.snippets {
+    width: 200px;
+    padding-right: 20px;
+}
+
+.editor-container {
+    flex-grow: 1;
+}
+
+#mode-selector, #collaboration-info {
+    margin-bottom: 20px;
+}
+
+#mode-selector button, #collaboration-info button {
+    margin-right: 10px;
+}
+
+#room-id {
+    padding: 5px;
+    margin-right: 10px;
+}
+
+#room-link {
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+#output-container {
+    margin-top: 20px;
+    border: 1px solid #ccc;
+    padding: 10px;
+    background-color: #f9f9f9;
+}
